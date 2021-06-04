@@ -74,7 +74,7 @@ jobs:
       - name: Publish CLI
         if: ${{ github.event_name != 'pull_request' }}
         shell: pwsh
-        working-directory: ./src
+        working-directory: ./src/Webstorm.AzureDevOps.Iterations.Generate
         run: |
           dotnet publish ./Webstorm.AzureDevOps.Iterations.Generate.csproj `
             --configuration ${{ env.BUILD_CONFIGURATION }} `
