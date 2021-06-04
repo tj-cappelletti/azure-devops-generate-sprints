@@ -69,10 +69,10 @@ jobs:
         shell: pwsh
         working-directory: ./src
         run: |
-          dotnet build
-            --configuration ${{ env.BUILD_CONFIGURATION }}
-            --runtime ${{ matrix.runtime }}
-            --no-restore
+          dotnet build `
+            --configuration ${{ env.BUILD_CONFIGURATION }} `
+            --runtime ${{ matrix.runtime }} `
+            --no-restore `
             /p:Version=${{ needs.semver.outputs.semVer }}
 
       - name: Publish CLI
