@@ -60,15 +60,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Restore NuGet Packages
+        shell: pwsh
+        working-directory: ./src
+        run: dotnet restore --runtime ${{ matrix.runtime }}
+
       - name: Build Projects
         shell: pwsh
         working-directory: ./src
         run: |
-          dotnet build ./Webstorm.AzureDevOps.Iterations.sln `
-            --configuration ${{ env.BUILD_CONFIGURATION }} `
-            --nologo `
-            /p:NetCoreBuild=true `
-            /p:NETCoreTargetsPath=${{ runner.temp }}/sql-tools `
+          dotnet build
+            --configuration ${{ env.BUILD_CONFIGURATION }}
+            --runtime ${{ matrix.runtime }}
+            --no-restore
             /p:Version=${{ needs.semver.outputs.semVer }}
 
       - name: Publish CLI
