@@ -1,0 +1,93 @@
+name: build-application-workflow
+
+# Build on every push (regardless of branch) for code changes
+# Build on PR to ensure the merge is good for code changes
+# Allow manual builds
+on:
+  push:
+    paths:
+    - '.github/workflows/**'
+    - 'src/**'
+
+  pull_request:
+    paths:
+    - '.github/workflows/**'
+    - 'src/**'
+
+  workflow_dispatch:
+
+env:
+  BUILD_CONFIGURATION: release
+  GENERATE_ITERATIONS_TOOL_NAME: webstorm-azure-devops-iterations-generate
+
+jobs:
+  semver:
+    name: "Generate SemVer"
+    runs-on: ubuntu-latest
+    outputs:
+      major: ${{ steps.gitversion.outputs.major }}
+      minor: ${{ steps.gitversion.outputs.minor }}
+      patch: ${{ steps.gitversion.outputs.patch }}
+      majorMinor: ${{ steps.gitversion.outputs.major }}.${{ steps.gitversion.outputs.minor }}
+      releaseLabel: ${{ steps.gitversion.outputs.major }}.${{ steps.gitversion.outputs.minor }}.${{ steps.gitversion.outputs.patch }}${{ steps.gitversion.outputs.prereleaselabelwithdash }}
+      majorMinorReleaseLabel: ${{ steps.gitversion.outputs.major }}.${{ steps.gitversion.outputs.minor }}${{ steps.gitversion.outputs.prereleaselabelwithdash }}
+      majorReleaseLabel: ${{ steps.gitversion.outputs.major }}${{ steps.gitversion.outputs.prereleaselabelwithdash }}
+      semVer: ${{ steps.gitversion.outputs.semver }}
+      shorSha: ${{ steps.gitversion.outputs.shortSha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.9.7
+        with:
+          versionSpec: '5.x'
+        
+      - name: GitVersion
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.9.7
+
+  buildApplciations:
+    name: "Build .NET Applciations"
+    runs-on: windows-latest
+    needs: semver
+    strategy:
+      matrix:
+        runtime: ["linux-x64", "osx-x64", "win-x64"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build Projects
+        shell: pwsh
+        working-directory: ./src
+        run: |
+          dotnet build ./Webstorm.AzureDevOps.Iterations.sln `
+            --configuration ${{ env.BUILD_CONFIGURATION }} `
+            --nologo `
+            /p:NetCoreBuild=true `
+            /p:NETCoreTargetsPath=${{ runner.temp }}/sql-tools `
+            /p:Version=${{ needs.semver.outputs.semVer }}
+
+      - name: Publish CLI
+        if: ${{ github.event_name != 'pull_request' }}
+        shell: pwsh
+        working-directory: ./src
+        run: |
+          dotnet publish ./Webstorm.AzureDevOps.Iterations.Generate.csproj `
+            --configuration ${{ env.BUILD_CONFIGURATION }} `
+            --runtime ${{ matrix.runtime }} `
+            --self-contained true `
+            --no-build `
+            --output ${{ runner.temp }}/${{ env.GENERATE_ITERATIONS_TOOL_NAME }}/${{ matrix.runtime }} `
+            --nologo
+
+      - uses: actions/upload-artifact@v2
+        if: ${{ github.event_name != 'pull_request' }}
+        name: Upload Published Tool
+        with:
+          name: ${{ env.GENERATE_ITERATIONS_TOOL_NAME }}_${{ matrix.runtime }}
+          path: ${{ runner.temp }}/${{ env.GENERATE_ITERATIONS_TOOL_NAME }}/${{ matrix.runtime }}
+          if-no-files-found: error
