@@ -65,11 +65,13 @@ jobs:
         working-directory: ./src
         run: dotnet restore --runtime ${{ matrix.runtime }}
 
+      # The .NET CLI does not currently support building a solution with a runtime specified
+      # For the time being, building the project file directly
       - name: Build Projects
         shell: pwsh
-        working-directory: ./src
+        working-directory: ./src/Webstorm.AzureDevOps.Iterations.Generate
         run: |
-          dotnet build `
+          dotnet build ./Webstorm.AzureDevOps.Iterations.Generate.csproj `
             --configuration ${{ env.BUILD_CONFIGURATION }} `
             --runtime ${{ matrix.runtime }} `
             --no-restore `
